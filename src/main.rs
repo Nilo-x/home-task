@@ -237,37 +237,17 @@ pub fn setup_opentelemetry(config: &Config) -> (
     )
 }
 
-// Setup tracing with OpenTelemetry
+// Setup tracing
 fn setup_tracing(config: &Config) {
-    use opentelemetry_otlp::SpanExporter;
-
-    let exporter = SpanExporter::builder()
-        .with_http()
-        .build()
-        .expect("Failed to create OTLP exporter");
-
-    let provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
-        .with_batch_exporter(exporter)
-        .with_resource(
-            Resource::builder()
-                .with_attributes(vec![
-                    KeyValue::new("service.name", config.service_name.clone()),
-                ])
-                .build(),
-        )
-        .build();
-
-    let tracer = provider.tracer("home-task");
-    let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
-
+    // TODO: Re-enable OpenTelemetry once tokio runtime issue is resolved
     let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| "info".into());
 
     TracingRegistry::default()
         .with(env_filter)
-        .with(telemetry_layer)
         .with(tracing_subscriber::fmt::layer())
-        .init();
+        .try_init()
+        .expect("Failed to initialize tracing");
 }
 
 #[tokio::main]
