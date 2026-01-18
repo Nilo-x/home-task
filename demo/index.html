@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CEZ Task - Interactive Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2rem;
+            text-align: center;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1rem;
+            text-align: center;
+        }
+        .demo-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+        .demo-title {
+            font-size: 1.25rem;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 5px rgba(102, 126, 234, 0.2);
+        }
+        .btn-row {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .result-box {
+            background: #e8f5e9;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            display: none;
+        }
+        .result-box.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .result-box.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .result-box.warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .result-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        .copy-btn {
+            background: #64748b;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .copy-btn:hover {
+            background: #4a3872;
+        }
+        .result-content {
+            font-family: "Courier New", monospace;
+            font-size: 0.85rem;
+            background: #2d3748;
+            color: #e6edf3;
+            padding: 12px;
+            border-radius: 6px;
+            max-height: 300px;
+            overflow: auto;
+            word-break: break-all;
+            white-space: pre-wrap;
+            line-height: 1.4;
+        }
+        .trace-info {
+            background: #e3f2fd;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: #1e1b4e;
+        }
+        .items-section {
+            margin-top: 30px;
+        }
+        .items-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        .items-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .items-list {
+            overflow-x: auto;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+        .items-list table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        .items-list th {
+            text-align: left;
+            padding: 12px;
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .items-list td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #eee;
+        }
+        .items-list tr:hover td {
+            background: #f8f9fa;
+        }
+        .items-list .id-cell {
+            font-family: monospace;
+            color: #666;
+            font-size: 0.8rem;
+        }
+        .items-list .date-cell {
+            color: #666;
+            font-size: 0.85rem;
+        }
+        .items-list .kafka-info {
+            font-family: monospace;
+            color: #dc3545;
+            font-size: 0.8rem;
+        }
+        .items-actions {
+            padding: 8px;
+            white-space: nowrap;
+        }
+        .items-actions button {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .items-actions button:hover {
+            background: #dc3545;
+        }
+        .empty-message {
+            text-align: center;
+            color: #999;
+            padding: 30px;
+            font-style: italic;
+        }
+        .services {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 30px;
+        }
+        .service-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            text-decoration: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: flex-start;
+        }
+        .service-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.25);
+        }
+        .service-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .service-desc {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        .service-icon {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+        footer {
+            margin-top: 40px;
+            text-align: center;
+            color: #999;
+            font-size: 0.85rem;
+        }
+        .badge {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            margin-left: 10px;
+        }
+        @media (max-width: 768px) {
+            .container {
+                padding: 25px;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+            .services {
+                grid-template-columns: 1fr;
+            }
+            .items-list th {
+                white-space: normal;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 CEZ Task Demo</h1>
+        <p class="subtitle">Microservices demonstration with tracing and observability</p>
+        
+        <div class="demo-section">
+            <div class="demo-title">📝 Create Item</div>
+            
+            <div class="form-group">
+                <label for="itemName">Item Name:</label>
+                <input type="text" id="itemName" placeholder="Enter item name (e.g., Demo Item)" maxlength="50">
+            </div>
+            
+            <div class="form-group">
+                <label for="itemValue">Value:</label>
+                <input type="number" id="itemValue" placeholder="Enter numeric value (e.g., 42)">
+            </div>
+            
+            <div class="btn-row">
+                <button id="createBtn" class="btn" onclick="createItem()">
+                    Create Item
+                </button>
+                <button id="clearBtn" class="btn" style="background: #6c757d;" onclick="clearForm()">
+                    Clear
+                </button>
+            </div>
+            
+            <div id="resultBox" class="result-box"></div>
+        </div>
+        
+        <div id="itemsSection" class="items-section" style="display: none;">
+            <div class="items-header">
+                <h3>📦 Created Items <span id="itemsCount" class="badge">0</span></h3>
+            </div>
+            <div class="items-list">
+                <table id="itemsTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Value</th>
+                            <th>Created At</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemsBody"></tbody>
+                </table>
+            </div>
+            <div id="emptyMessage" class="empty-message" style="display: none;">
+                No items created yet. Use form above!
+            </div>
+        </div>
+        
+        <div class="services">
+            <a href="https://console.jan-horak.xyz/" target="_blank" rel="noopener noreferrer" class="service-card">
+                <span class="service-icon">🎛️</span>
+                <span class="service-title">Redpanda Console</span>
+                <span class="service-desc">Kafka cluster management UI</span>
+            </a>
+            
+            <a href="https://jaeger.jan-horak.xyz/" target="_blank" rel="noopener noreferrer" class="service-card">
+                <span class="service-icon">🔍</span>
+                <span class="service-title">Jaeger UI</span>
+                <span class="service-desc">Distributed tracing</span>
+            </a>
+        </div>
+        
+        <footer>
+            <p>Powered by Rust, PostgreSQL, Redpanda, OpenTelemetry & Jaeger</p>
+        </footer>
+    </div>
+
+    <script>
+        let items = [];
+        let lastRawResponse = '';
+        
+        // Generate W3C traceparent header format: 00-{trace_id}-{span_id}-{trace_flags}
+        function generateTraceparent() {
+            const traceId = generateHexId(32);
+            const spanId = generateHexId(16);
+            const traceFlags = '01';
+            return `00-${traceId}-${spanId}-${traceFlags}`;
+        }
+        
+        // Generate random hex ID
+        function generateHexId(length) {
+            const array = new Uint8Array(length / 2);
+            crypto.getRandomValues(array);
+            return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+        }
+        
+        function createItem() {
+            console.log('=== createItem() called ===');
+            
+            const nameInput = document.getElementById('itemName');
+            const valueInput = document.getElementById('itemValue');
+            const btn = document.getElementById('createBtn');
+            const resultBox = document.getElementById('resultBox');
+            
+            const name = nameInput ? nameInput.value.trim() : null;
+            const value = valueInput ? parseInt(valueInput.value) : null;
+            
+            console.log('Parsed name:', name);
+            console.log('Parsed value:', value);
+            
+            if (!name) {
+                console.log('Name validation failed');
+                showResult('error', 'Please enter an item name');
+                return;
+            }
+            
+            if (isNaN(value)) {
+                console.log('Value validation failed');
+                showResult('error', 'Please enter a valid numeric value');
+                return;
+            }
+            
+            // Generate traceparent for distributed tracing
+            const traceparent = generateTraceparent();
+            console.log('Generated traceparent:', traceparent);
+            
+            console.log('Validation passed, starting request...');
+            
+            btn.disabled = true;
+            btn.textContent = 'Creating...';
+            resultBox.style.display = 'none';
+            
+            fetch('https://jan-horak.xyz/items', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'traceparent': traceparent
+                },
+                body: JSON.stringify({ name: name, value: value })
+            })
+            .then(response => {
+                console.log('Fetch response received:', response);
+                
+                return response.clone().text().then(text => {
+                    console.log('Response text:', text);
+                    lastRawResponse = text;
+                    try {
+                        const json = JSON.parse(text);
+                        console.log('Parsed JSON:', json);
+                        return { success: true, data: json };
+                    } catch (e) {
+                        console.log('JSON parse error:', e);
+                        return { success: true, data: null, raw: text };
+                    }
+                });
+            })
+            .then(result => {
+                console.log('Process result:', result);
+                
+                if (result.success && result.data) {
+                    console.log('Success branch - adding item:', result.data);
+                    items.unshift(result.data);
+                    updateItemsList();
+                    showResult('success', null, lastRawResponse, traceparent);
+                    nameInput.value = '';
+                    valueInput.value = '';
+                    nameInput.focus();
+                } else {
+                    console.log('Error branch - showing error');
+                    const errorMsg = result.raw || 'Unknown error';
+                    showResult('error', 'Failed to create item: ' + errorMsg);
+                }
+            })
+            .catch(error => {
+                console.log('Fetch error:', error);
+                const errorMsg = error.message || 'Network error';
+                showResult('error', 'Error: ' + errorMsg);
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.textContent = 'Create Item';
+            });
+        }
+        
+        function showResult(type, content, rawJson, traceparent) {
+            const resultBox = document.getElementById('resultBox');
+            
+            resultBox.className = 'result-box ' + type;
+            
+            const formattedJson = rawJson ? formatJson(rawJson) : '{}';
+            let resultContent = '';
+            
+            if (type === 'success') {
+                const traceInfo = traceparent ? 
+                    '<div class="trace-info"><strong>Traceparent:</strong> ' + traceparent + '</div>' : '';
+                resultContent = '<div class="result-header"><span class="result-title">✅ Item Created & Published to Kafka!</span><button class="copy-btn" onclick="copyToClipboard()">Copy JSON</button></div>' + traceInfo + '<div class="result-content">' + formattedJson + '</div>';
+            } else if (type === 'warning') {
+                resultContent = '<div class="result-title">ℹ️ Warning</div><div class="result-content">' + content + '</div>';
+            } else if (type === 'error') {
+                resultContent = '<div class="result-title">❌ Error</div><div class="result-content">' + content + '</div>';
+            } else {
+                resultContent = '<div class="result-title">Unknown result type</div><div class="result-content">' + content + '</div>';
+            }
+            
+            resultBox.innerHTML = resultContent;
+            resultBox.style.display = 'block';
+        }
+        
+        function formatJson(jsonString) {
+            try {
+                const obj = JSON.parse(jsonString);
+                return JSON.stringify(obj, null, 2);
+            } catch (e) {
+                return jsonString;
+            }
+        }
+        
+        function copyToClipboard() {
+            if (lastRawResponse) {
+                navigator.clipboard.writeText(lastRawResponse).then(() => {
+                    const copyBtn = document.querySelector('.copy-btn');
+                    if (copyBtn) {
+                        copyBtn.textContent = 'Copied!';
+                        setTimeout(() => copyBtn.textContent = 'Copy JSON', 2000);
+                    }
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                });
+            }
+        }
+        
+        function updateItemsList() {
+            const itemsSection = document.getElementById('itemsSection');
+            const itemsBody = document.getElementById('itemsBody');
+            const emptyMessage = document.getElementById('emptyMessage');
+            const itemsCount = document.getElementById('itemsCount');
+            
+            if (items.length > 0) {
+                itemsSection.style.display = 'block';
+                if (emptyMessage) emptyMessage.style.display = 'none';
+                
+                itemsBody.innerHTML = items.map(item => {
+                    if (!item.id || !item.name) return '';
+                    
+                    const shortId = item.id.length > 16 ? item.id.substring(0, 16) + '...' : item.id;
+                    const createdAt = item.created_at ? formatDate(item.created_at) : 'N/A';
+                    
+                    return '<tr><td class="id-cell">' + shortId + '</td><td>' + item.name + '</td><td class="date-cell">' + createdAt + '</td><td class="kafka-info">Published to: items.created</td><td class="items-actions"><button onclick="deleteItem(\'' + item.id + '\')">Delete</button></td></tr>';
+                }).join('');
+                
+                if (itemsCount) itemsCount.textContent = items.length + ' items';
+            } else {
+                itemsSection.style.display = 'block';
+                itemsBody.innerHTML = '';
+                if (emptyMessage) emptyMessage.style.display = 'block';
+                
+                if (itemsCount) {
+                    itemsCount.textContent = '0 items';
+                    const h3 = itemsSection.querySelector('h3');
+                    h3.innerHTML = '📦 Created Items <span class="badge">0 items</span>';
+                }
+            }
+        }
+        
+        function deleteItem(id) {
+            console.log('deleteItem called with id:', id);
+            
+            fetch('https://jan-horak.xyz/items/' + id, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Delete success, received data:', data);
+                items = items.filter(item => item.id !== id);
+                updateItemsList();
+            })
+            .catch(error => {
+                console.error('Delete error:', error);
+                alert('Failed to delete item: ' + error.message);
+            });
+        }
+        
+        function clearForm() {
+            const nameInput = document.getElementById('itemName');
+            const valueInput = document.getElementById('itemValue');
+            if (nameInput) nameInput.value = '';
+            if (valueInput) valueInput.value = '';
+            if (nameInput) nameInput.focus();
+        }
+        
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString();
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM loaded - demo page ready');
+        });
+    </script>
+</body>
+</html>
