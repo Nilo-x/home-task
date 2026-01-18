@@ -1,5 +1,5 @@
 # Stage 1: Builder (Rust - Alpine)
-FROM rust:1.88.0-alpine AS builder
+FROM rust:alpine3.23 AS builder
 
 ARG BUILD_DATE
 

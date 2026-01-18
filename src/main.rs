@@ -160,8 +160,9 @@ async fn publish_item_event(
 
     let start = std::time::Instant::now();
     match producer.send(record, Duration::from_secs(5)).await {
-        Ok((partition, offset)) => {
+        Ok(delivery) => {
             let duration = start.elapsed();
+            let (partition, offset) = (delivery.partition, delivery.offset);
             info!(
                 partition = partition,
                 offset = offset,
@@ -193,11 +194,13 @@ pub fn setup_opentelemetry(config: &Config) -> (
     Histogram,
     Counter,
 ) {
-    let resource = Resource::new(vec![
-        KeyValue::new("service.name", config.service_name.clone()),
-        KeyValue::new("service.version", env!("CARGO_PKG_VERSION")),
-        KeyValue::new("deployment.environment", "production"),
-    ]);
+    let resource = Resource::builder()
+        .with_attributes(vec![
+            KeyValue::new("service.name", config.service_name.clone()),
+            KeyValue::new("service.version", env!("CARGO_PKG_VERSION")),
+            KeyValue::new("deployment.environment", "production"),
+        ])
+        .build();
 
     let meter_provider = SdkMeterProvider::builder()
         .with_resource(resource)
@@ -243,11 +246,15 @@ fn setup_tracing(config: &Config) {
         .build()
         .expect("Failed to create OTLP exporter");
 
-    let provider = opentelemetry_sdk::trace::TracerProvider::builder()
-        .with_batch_exporter(exporter, opentelemetry_sdk::runtime::Tokio)
-        .with_resource(Resource::new(vec![
-            KeyValue::new("service.name", config.service_name.clone()),
-        ]))
+    let provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
+        .with_batch_exporter(exporter)
+        .with_resource(
+            Resource::builder()
+                .with_attributes(vec![
+                    KeyValue::new("service.name", config.service_name.clone()),
+                ])
+                .build(),
+        )
         .build();
 
     let tracer = provider.tracer("home-task");
@@ -324,7 +331,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/health", get(health))
         .route("/metrics", get(metrics))
         .route("/items", post(create_item))
-        .route("/items/:id", get(get_item))
+        .route("/items/{id}", get(get_item))
         .layer(axum::middleware::from_fn_with_state(state.clone(), http_tracing_middleware))
         .with_state(state);
 
@@ -401,8 +408,8 @@ async fn http_tracing_middleware(
     response
 }
 
-#[instrument(skip(state))]
-pub async fn health(State(state): State<AppState>) -> impl IntoResponse {
+#[instrument(skip(_state))]
+pub async fn health(State(_state): State<AppState>) -> impl IntoResponse {
     Json(HealthResponse {
         status: "healthy".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
@@ -444,8 +451,8 @@ pub async fn create_item(
     // Use provided value or generate random
     let value = input.value.unwrap_or_else(|| {
         use rand::Rng;
-        let mut rng = rand::thread_rng();
-        rng.gen_range(0..1000)
+        let mut rng = rand::rng();
+        rng.random_range(0..1000)
     });
 
     tracing::Span::current().record("item_name", &input.name.as_str());
