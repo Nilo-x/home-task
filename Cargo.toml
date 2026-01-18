@@ -1,0 +1,47 @@
+[package]
+name = "home-task"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Web framework
+axum = "0.7.5"
+tokio = { version = "1.39.3", features = ["full"] }
+
+# Database
+sqlx = { version = "0.8.1", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid", "macros"] }
+
+# Kafka
+rdkafka = { version = "0.36.2", features = ["tokio", "cmake-build"] }
+
+# Serialization
+serde = { version = "1.0.204", features = ["derive"] }
+serde_json = "1.0.122"
+
+# Utilities
+anyhow = "1.0.86"
+dotenvy = "0.15.7"
+uuid = { version = "1.10.0", features = ["v4", "serde"] }
+rand = "0.8"  # For generating random values
+chrono = { version = "0.4.38", features = ["serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+opentelemetry = { version = "0.27", features = ["trace"] }
+opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.27", features = ["http-proto", "reqwest-client", "trace"] }
+tracing-opentelemetry = "0.28"
+
+# Add uuidv7 crate for PostgreSQL gen_random_uuid
+uuidv7 = "0.1"
+
+# Metrics
+opentelemetry-semantic-conventions = "0.27"
+opentelemetry-prometheus = { version = "0.27", features = ["prometheus-encoding"] }
+prometheus = "0.13"
+
+[dev-dependencies]
+# Testing
+tower = "0.5"
+http-body-util = "0.1"
+hyper = "1.4"
+anyhow = "1.0.86"

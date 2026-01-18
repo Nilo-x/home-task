@@ -1,0 +1,286 @@
+# Docker Compose with all images pinned to latest versions
+# Generated: 2025-01-17
+#
+# Version Locking Strategy:
+# - Specific version tags for production reproducibility
+# - Date-based pins for OS images (bookworm-slim-YYYYMMDD)
+# - This ensures same images always deployed
+
+services:
+  # ============================================
+  # Main Application
+  # ============================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_DATE: ${BUILD_DATE:-2025-01-17}
+    image: home-task-app:1.0.0
+    container_name: home-task-app
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hometask
+      KAFKA_BROKERS: redpanda:9092
+      RUST_LOG: ${RUST_LOG:-info}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otlp-collector:4318
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-home-task}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_started
+      otlp-collector:
+        condition: service_started
+    networks:
+      - app-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+
+  # ============================================
+  # PostgreSQL Database
+  # ============================================
+  # Latest: PostgreSQL 18.1 (Alpine for smaller size)
+  # Pinned: 18-alpine (tracks 18.x releases)
+  postgres:
+    image: postgres:18-alpine
+    container_name: home-task-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-hometask}
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - app-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # ============================================
+  # Redpanda (Kafka-compatible)
+  # ============================================
+  # Latest: Redpanda v25.3.5
+  # Pinned: v25.3.5
+  redpanda:
+    image: redpandadata/redpanda:v25.3.5
+    container_name: home-task-redpanda
+    command:
+      - redpanda
+      - start
+      - --smp
+      - "1"
+      - --memory
+      - "512M"
+      - --kafka-addr
+      - "0.0.0.0:9092"
+      - --advertise-kafka-addr
+      - "redpanda:9092"
+      - --pandaproxy-addr
+      - "0.0.0.0:8082"
+      - --advertise-pandaproxy-addr
+      - "redpanda:8082"
+    ports:
+      - "${KAFKA_PORT:-9092}:9092"
+      - "8081:8081"    # Admin
+      - "8082:8082"    # Pandaproxy (HTTP)
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster info"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - app-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 768M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # ============================================
+  # Redpanda Console (Optional UI)
+  # ============================================
+  # Latest: Redpanda Console v3.5.0
+  # Pinned: v3.5.0
+  redpanda-console:
+    image: redpandadata/console:v3.5.0
+    container_name: home-task-redpanda-console
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+      SERVER_LISTENPORT: 8080
+    ports:
+      - "${CONSOLE_PORT:-8080}:8080"
+    depends_on:
+      redpanda:
+        condition: service_started
+    networks:
+      - app-network
+    restart: unless-stopped
+    profiles:
+      - tools
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+  # ============================================
+  # OpenTelemetry Collector
+  # ============================================
+  # Latest: OpenTelemetry Collector Contrib v0.143.1
+  # Pinned: v0.143.1
+  otlp-collector:
+    image: otel/opentelemetry-collector-contrib:0.143.1
+    container_name: home-task-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317:4317"    # OTLP gRPC receiver
+      - "4318:4318"    # OTLP HTTP receiver
+      - "9464:9464"    # Prometheus metrics
+      - "13133:13133"    # Health check
+    depends_on:
+      jaeger:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 256M
+
+  # ============================================
+  # Jaeger Tracing
+  # ============================================
+  # Latest on Docker Hub: Jaeger v1.76.0
+  # Pinned: v1.76.0
+  # Note: v2.x exists on GitHub but not yet on Docker Hub
+  jaeger:
+    image: jaegertracing/all-in-one:1.76.0
+    container_name: home-task-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      COLLECTOR_ZIPKIN_HOST_PORT: ":9411"
+      SPAN_STORAGE_TYPE: memory
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14250:14250"  # Jaeger collector gRPC
+      - "9411:9411"    # Zipkin
+    networks:
+      - app-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:16686 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ============================================
+  # Test Service (Direct Jaeger Export)
+  # ============================================
+  app-direct-jaeger:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_DATE: ${BUILD_DATE:-2025-01-17}
+    image: home-task-app:1.0.0
+    container_name: home-task-app-direct
+    ports:
+      - "3001:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hometask
+      KAFKA_BROKERS: redpanda:9092
+      RUST_LOG: info
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      OTEL_SERVICE_NAME: home-task-direct
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_started
+      jaeger:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    profiles:
+      - test
+
+volumes:
+  postgres-data:
+    driver: local
+    labels:
+      com.home-task.description: "PostgreSQL data persistence"
+  redpanda-data:
+    driver: local
+    labels:
+      com.home-task.description: "Redpanda data persistence"
+
+networks:
+  app-network:
+    driver: bridge
+    labels:
+      com.home-task.description: "Application network"
