@@ -100,15 +100,21 @@ fn inject_w3c_headers(
     record: &mut FutureRecord<String, Vec<u8>>,
     trace_context: &Option<W3CTraceContext>,
 ) {
-    if let Some(ctx) = trace_context {
-        use rdkafka::message::OwnedHeaders;
-        let headers = OwnedHeaders::new()
+    use rdkafka::message::OwnedHeaders;
+
+    // Always include headers to ensure they're sent (even if no trace context)
+    let headers = if let Some(ctx) = trace_context {
+        OwnedHeaders::new()
             .insert(rdkafka::message::Header {
                 key: "traceparent",
                 value: Some(&format!("00-{}-{}-01", ctx.trace_id, ctx.span_id)),
-            });
-        record.headers = Some(headers);
-    }
+            })
+    } else {
+        // Even without trace context, include empty headers
+        OwnedHeaders::new()
+    };
+
+    record.headers = Some(headers);
 }
 
 // Create Kafka producer
@@ -239,23 +245,43 @@ pub fn setup_opentelemetry(config: &Config) -> (
 
 // Setup tracing with OpenTelemetry (returns provider to keep alive)
 fn setup_tracing(config: &Config) -> opentelemetry_sdk::trace::SdkTracerProvider {
-    use opentelemetry_otlp::SpanExporter;
+    use opentelemetry_otlp::WithExportConfig;
+    use opentelemetry_sdk::trace::BatchSpanProcessor;
 
-    // TODO: OpenTelemetry simple exporter blocking - need to fix
     let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| "info".into());
 
+    // Get OTLP endpoint from environment or use default
+    // For gRPC, we need to convert http:// to http:// or use grpc endpoint
+    let otlp_endpoint = std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
+        .unwrap_or_else(|_| "http://otlp-collector:4317".to_string());
+
+    // Create OTLP exporter with gRPC protocol
+    let exporter = opentelemetry_otlp::SpanExporter::builder()
+        .with_tonic()
+        .with_endpoint(&otlp_endpoint)
+        .build()
+        .expect("Failed to create OTLP exporter");
+
+    // Create batch processor for efficient span export
+    let batch_processor = BatchSpanProcessor::builder(exporter)
+        .build();
+
+    // Create tracer provider with batch processor
     let provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
+        .with_span_processor(batch_processor)
         .with_resource(
             Resource::builder()
                 .with_attributes(vec![
                     KeyValue::new("service.name", config.service_name.clone()),
+                    KeyValue::new("service.version", env!("CARGO_PKG_VERSION")),
+                    KeyValue::new("deployment.environment", "production"),
                 ])
                 .build(),
         )
         .build();
 
-    let tracer = provider.tracer("home-task");
+    let tracer = provider.tracer(config.service_name.to_string());
     let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
 
     TracingRegistry::default()

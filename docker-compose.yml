@@ -24,7 +24,7 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hometask
       KAFKA_BROKERS: redpanda:9092
       RUST_LOG: ${RUST_LOG:-info}
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otlp-collector:4318
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otlp-collector:4317
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-home-task}
     depends_on:
       postgres:
