@@ -237,17 +237,35 @@ pub fn setup_opentelemetry(config: &Config) -> (
     )
 }
 
-// Setup tracing
-fn setup_tracing(config: &Config) {
-    // TODO: Re-enable OpenTelemetry once tokio runtime issue is resolved
+// Setup tracing with OpenTelemetry (returns provider to keep alive)
+fn setup_tracing(config: &Config) -> opentelemetry_sdk::trace::SdkTracerProvider {
+    use opentelemetry_otlp::SpanExporter;
+
+    // TODO: OpenTelemetry simple exporter blocking - need to fix
     let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| "info".into());
 
+    let provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
+        .with_resource(
+            Resource::builder()
+                .with_attributes(vec![
+                    KeyValue::new("service.name", config.service_name.clone()),
+                ])
+                .build(),
+        )
+        .build();
+
+    let tracer = provider.tracer("home-task");
+    let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
+
     TracingRegistry::default()
         .with(env_filter)
+        .with(telemetry_layer)
         .with(tracing_subscriber::fmt::layer())
         .try_init()
         .expect("Failed to initialize tracing");
+
+    provider
 }
 
 #[tokio::main]
@@ -256,8 +274,8 @@ async fn main() -> anyhow::Result<()> {
 
     let config = Config::from_env();
 
-    // Initialize tracing
-    setup_tracing(&config);
+    // Initialize tracing - keep provider alive
+    let _otel_provider = setup_tracing(&config);
 
     info!("Starting home-task application...");
 
